@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SemanticReleaseCLI": {
+      "commandName": "Project",
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
