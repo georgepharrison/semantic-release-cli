@@ -9,6 +9,13 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <CollectCoverage>true</CollectCoverage>
+    <SkipAutoProps>true</SkipAutoProps>
+    <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
+    <CoverletOutput>../../</CoverletOutput>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" Version="6.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
