@@ -1,4 +1,5 @@
 using SemanticReleaseCLI.Interfaces;
+using Spectre.Console;
 using Spectre.Console.Cli;
 using System.ComponentModel;
 
@@ -16,6 +17,15 @@ internal sealed class CreateTagCommand(IGitService gitService) : AsyncCommand<Cr
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
+        bool isGitRepo = await _gitService.IsGitRepoAsync(settings.RepositoryPath);
+
+        if (!isGitRepo)
+        {
+            AnsiConsole.WriteLine($"{settings.RepositoryPath ?? "Current directory"} is not a git repository");
+
+            return 1;
+        }
+
         await _gitService.CreateAndPushTag(settings.Tag, workingDirectory: settings.RepositoryPath);
 
         return 0;

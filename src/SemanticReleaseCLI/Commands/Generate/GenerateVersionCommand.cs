@@ -5,10 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace SemanticReleaseCLI.Commands;
 
-internal sealed partial class GenerateVersionCommand(IRepositoryInformationService repositoryInformationService) : AsyncCommand<GenerateVersionCommand.Settings>
+internal sealed partial class GenerateVersionCommand(IGitService gitService, IRepositoryInformationService repositoryInformationService) : AsyncCommand<GenerateVersionCommand.Settings>
 {
     #region Private Fields
 
+    private readonly IGitService _gitService = gitService;
     private readonly IRepositoryInformationService _repositoryInformationService = repositoryInformationService;
 
     [GeneratedRegex("[^.0-9]")]
@@ -20,6 +21,15 @@ internal sealed partial class GenerateVersionCommand(IRepositoryInformationServi
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
+        bool isGitRepo = await _gitService.IsGitRepoAsync(settings.RepositoryPath);
+
+        if (!isGitRepo)
+        {
+            AnsiConsole.WriteLine($"{settings.RepositoryPath ?? "Current directory"} is not a git repository");
+
+            return 1;
+        }
+
         string result = await _repositoryInformationService.GetCommitTag();
 
         string version = NonNumericRegex().Replace(result, "");

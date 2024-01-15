@@ -24,6 +24,8 @@ public interface IGitService
 
     IAsyncEnumerable<string> GetTags(string? sort = "committerdate", string? gitPath = null, string? workingDirectory = null);
 
+    Task<bool> IsGitRepoAsync(string? repoPath = null);
+
     IAsyncEnumerable<string> SearchLogs(string grep, string? regexType = null, string? startIndex = null, string? endIndex = null, string? gitPath = null, string? workingDirectory = null);
 
     Task StageFile(string file, string? gitPath = null, string? workingDirectory = null);

@@ -2,6 +2,7 @@
 
 using CliWrap;
 using CliWrap.Buffered;
+using CliWrap.Builders;
 using CliWrap.EventStream;
 using SemanticReleaseCLI.Extensions;
 using SemanticReleaseCLI.Interfaces;
@@ -10,14 +11,34 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SemanticReleaseCLI.Services;
 
-public class GitService : IGitService
+public class GitService(IFileSystemService fileSystemService) : IGitService
 {
+    #region Private Members
+
+    private readonly IFileSystemService _fileSystemService = fileSystemService;
+
+    #endregion Private Members
+
     #region Public Methods
+
+    public async Task<bool> IsGitRepoAsync(string? repoPath = null)
+    {
+        BufferedCommandResult result = await Cli.Wrap("git")
+            .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
+            .WithArguments(args => args
+                .Add("rev-parse")
+                .Add("--git-dir")
+            )
+            .WithValidation(CommandResultValidation.None)
+            .ExecuteBufferedAsync();
+
+        return result.ExitCode is 0;
+    }
 
     public async Task AmendCommit(string? gitPath = null, string? workingDirectory = null)
     {
         await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "commit", "--amend", "--no-edit" })
             .WithValidation(CommandResultValidation.None)
             .ExecuteAsync();
@@ -26,13 +47,13 @@ public class GitService : IGitService
     public async Task CreateAndPushTag(string tag, string? gitPath = null, string? workingDirectory = null)
     {
         await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "tag", tag })
             .WithValidation(CommandResultValidation.None)
             .ExecuteAsync();
 
         await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "push", "origin", tag })
             .WithValidation(CommandResultValidation.None)
             .ExecuteAsync();
@@ -40,10 +61,10 @@ public class GitService : IGitService
 
     public async Task DeleteTags(string pattern, string? gitPath = null, string? workingDirectory = null)
     {
-        var foo = Directory.GetCurrentDirectory();
+        var foo = _fileSystemService.GetCurrentDirectory();
 
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "tag", "--list", pattern })
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
@@ -59,7 +80,7 @@ public class GitService : IGitService
             AnsiConsole.WriteLine($"Tags found for removal: {string.Join(", ", tagsToRemove)}");
 
             Command cmd = Cli.Wrap(gitPath ?? "git")
-                    .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+                    .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
                     .WithArguments(args =>
                     {
                         args.Add("push")
@@ -95,7 +116,7 @@ public class GitService : IGitService
             }
 
             cmd = Cli.Wrap(gitPath ?? "git")
-                .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+                .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
                 .WithArguments(args =>
                 {
                     args.Add("tag")
@@ -134,7 +155,7 @@ public class GitService : IGitService
     public async Task<int> GetCommitCount(string since, string until, string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args => args
                 .Add("rev-list")
                 .Add("--count")
@@ -151,7 +172,7 @@ public class GitService : IGitService
     public async Task<string> GetCommitDate(string? format = "%cs", string? reference = null, string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args =>
             {
                 args.Add("log");
@@ -173,7 +194,7 @@ public class GitService : IGitService
     public async Task<string> GetCurrentCommit(string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "rev-parse", "HEAD" })
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
@@ -188,7 +209,7 @@ public class GitService : IGitService
         while (true)
         {
             BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-                .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+                .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
                 .WithArguments(args =>
                 {
                     args.Add("log");
@@ -224,7 +245,7 @@ public class GitService : IGitService
     public async Task<string?> GetTagAtHead(string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "tag", "--points-at", "HEAD" })
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
@@ -243,7 +264,7 @@ public class GitService : IGitService
         try
         {
             BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-                .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+                .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
                 .WithArguments(new[] { "describe", "--tags", "--abbrev=0", "HEAD^" })
                 .WithValidation(CommandResultValidation.None)
                 .ExecuteBufferedAsync();
@@ -264,7 +285,7 @@ public class GitService : IGitService
     public async IAsyncEnumerable<string> GetTags(string? sort = "committerdate", string? gitPath = null, string? workingDirectory = null)
     {
         Command cmd = Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "tag", "--sort=committerdate" })
             .WithValidation(CommandResultValidation.None);
 
@@ -280,7 +301,7 @@ public class GitService : IGitService
     public async IAsyncEnumerable<string> SearchLogs(string grep, string? regexType = null, string? startIndex = null, string? endIndex = null, string? gitPath = null, string? workingDirectory = null)
     {
         Command cmd = Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args =>
             {
                 args.Add("log");
@@ -311,7 +332,7 @@ public class GitService : IGitService
     public async Task StageFile(string file, string? gitPath = null, string? workingDirectory = null)
     {
         await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? Directory.GetCurrentDirectory())
+            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(new[] { "add", file })
             .WithValidation(CommandResultValidation.None)
             .ExecuteAsync();

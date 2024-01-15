@@ -9,7 +9,7 @@ internal class AppSettings : CommandSettings
 
     [Description("The path to your git repository")]
     [CommandOption("-p|--path")]
-    public string RepositoryPath { get; init; } = Environment.CurrentDirectory;
+    public string? RepositoryPath { get; init; }
 
     #endregion Public Properties
 }

@@ -15,6 +15,7 @@ internal sealed class Program
     {
         IServiceCollection services = new ServiceCollection();
 
+        services.AddTransient<IFileSystemService, FileSystemService>();
         services.AddTransient<IGitService, GitService>();
         services.AddTransient<IReleaseCliService, ReleaseCliService>();
         services.AddTransient<IRepositoryInformationService, RepositoryInformation>();

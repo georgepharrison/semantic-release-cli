@@ -1,12 +1,14 @@
 using SemanticReleaseCLI.Interfaces;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace SemanticReleaseCLI.Commands.Create;
 
-internal sealed class CreateReleaseCommand(IRepositoryInformationService repositoryInformationService) : AsyncCommand<CreateReleaseCommand.Settings>
+internal sealed class CreateReleaseCommand(IGitService gitService, IRepositoryInformationService repositoryInformationService) : AsyncCommand<CreateReleaseCommand.Settings>
 {
     #region Private Fields
 
+    private readonly IGitService _gitService = gitService;
     private readonly IRepositoryInformationService _repositoryInformationService = repositoryInformationService;
 
     #endregion Private Fields
@@ -15,6 +17,15 @@ internal sealed class CreateReleaseCommand(IRepositoryInformationService reposit
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
+        bool isGitRepo = await _gitService.IsGitRepoAsync(settings.RepositoryPath);
+
+        if (!isGitRepo)
+        {
+            AnsiConsole.WriteLine($"{settings.RepositoryPath ?? "Current directory"} is not a git repository");
+
+            return 1;
+        }
+
         await _repositoryInformationService.CreateRelease();
 
         return 0;
