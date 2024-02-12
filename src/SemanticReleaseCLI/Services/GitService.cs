@@ -43,7 +43,12 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
 
         string formattedOutput = result.StandardOutput[..^1]
             .Replace($"}}{Environment.NewLine}{{", "},{", StringComparison.Ordinal)
-            .Replace(Environment.NewLine, @"\n", StringComparison.Ordinal);
+            .Replace($"}}\r\n{{", "},{", StringComparison.Ordinal)
+            .Replace($"}}\r{{", "},{", StringComparison.Ordinal)
+            .Replace($"}}\n{{", "},{", StringComparison.Ordinal)
+            .Replace(Environment.NewLine, @"\r\n", StringComparison.Ordinal)
+            .Replace("\n", @"\r\n", StringComparison.Ordinal)
+            .Replace("\r\r\n", @"\r\n", StringComparison.Ordinal);
 
         string json = $"[{formattedOutput}]";
 
@@ -60,7 +65,7 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
             .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args => args
                 .Add("rev-parse")
-                .Add("HEAD" )
+                .Add("HEAD")
             )
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();

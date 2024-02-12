@@ -2,6 +2,8 @@ using DotLiquid;
 using FluentAssertions;
 using Moq;
 using SemanticReleaseCLI.Interfaces;
+using System.Reflection;
+using System.Text;
 
 namespace SemanticReleaseCLI.UnitTests;
 
@@ -16,6 +18,10 @@ public class RepositoryServiceTests
     #endregion Protected Properties
 
     #region Public Methods
+
+    [TestCleanup]
+    public void TestCleanup()
+        => Directory.Delete(RepoPath, true);
 
     [TestInitialize]
     public void TestInitialize()
@@ -34,15 +40,15 @@ public class RepositoryServiceTests
         Subject = new(MockFileSystemService.Object, MockGitService.Object);
     }
 
-    [TestCleanup]
-    public void TestCleanup()
-        => Directory.Delete(RepoPath, true);
-
     #endregion Public Methods
+
+    #region Public Classes
 
     [TestClass]
     public class GetChangeLogTemplate : RepositoryServiceTests
     {
+        #region Public Methods
+
         [TestMethod]
         public void When_RepoFileNotFound_Expect_DefaultEmbeddedResource()
         {
@@ -52,11 +58,26 @@ public class RepositoryServiceTests
 
             MockFileSystemService.Setup(x => x.TryGetFileContents(fileName, out contents)).Returns(false);
 
+            Assembly assembly = typeof(RepositoryServiceTests).Assembly;
+
+            using Stream resourceStream = assembly.GetManifestResourceStream($"{nameof(SemanticReleaseCLI)}.{nameof(UnitTests)}.changelog_template.md")
+                ?? throw new KeyNotFoundException("changelog_template.md");
+
+            using StreamReader reader = new(resourceStream, Encoding.UTF8);
+
+            string template = reader.ReadToEnd();
+
+            Template expected = Template.Parse(template);
+
             // act
             Template actual = Subject.GetChangeLogTemplate(RepoPath);
 
             // assert
-            actual.Should().NotBeNull();
+            actual.Should().BeEquivalentTo(expected);
         }
+
+        #endregion Public Methods
     }
+
+    #endregion Public Classes
 }

@@ -1,15 +1,15 @@
-﻿using System.Reflection;
-using FluentAssertions;
+﻿using FluentAssertions;
+using System.Reflection;
 
 namespace SemanticReleaseCLI.UnitTests;
 
 public class FileSystemServiceTests
 {
-    #region Private Members
+    #region Private Fields
 
     private string _testDirectory = string.Empty;
 
-    #endregion Private Members
+    #endregion Private Fields
 
     #region Protected Properties
 
@@ -18,6 +18,10 @@ public class FileSystemServiceTests
     #endregion Protected Properties
 
     #region Public Methods
+
+    [TestCleanup]
+    public void TestCleanup()
+        => Directory.Delete(_testDirectory, true);
 
     [TestInitialize]
     public void TestInitialize()
@@ -33,15 +37,15 @@ public class FileSystemServiceTests
         Subject = new();
     }
 
-    [TestCleanup]
-    public void TestCleanup()
-        => Directory.Delete(_testDirectory, true);
-
     #endregion Public Methods
+
+    #region Public Classes
 
     [TestClass]
     public class GetCurrentDirectory : FileSystemServiceTests
     {
+        #region Public Methods
+
         [TestMethod]
         public void Should_ReturnCurrentDirectory()
         {
@@ -50,29 +54,19 @@ public class FileSystemServiceTests
             string expected = Path.GetDirectoryName(executingAssembly) ?? throw new InvalidOperationException();
 
             // act
-            string actual = Directory.GetCurrentDirectory();
+            string actual = Subject.GetCurrentDirectory();
 
             // assert
             actual.Should().Be(expected);
         }
+
+        #endregion Public Methods
     }
 
     [TestClass]
     public class TryGetFileContents : FileSystemServiceTests
     {
-        [TestMethod]
-        public void When_FileNotFound_Expect_False()
-        {
-            // arrange
-            string fileName = Path.Combine(_testDirectory, "NotFound");
-
-            // act
-            bool actual = Subject.TryGetFileContents(fileName, out string? contents);
-
-            // assert
-            actual.Should().BeFalse();
-            contents.Should().BeNull();
-        }
+        #region Public Methods
 
         [TestMethod]
         public void When_FileFound_Expect_True()
@@ -91,5 +85,23 @@ public class FileSystemServiceTests
             contents.Should().NotBeNull();
             contents.Should().BeEquivalentTo(expectedContents);
         }
+
+        [TestMethod]
+        public void When_FileNotFound_Expect_False()
+        {
+            // arrange
+            string fileName = Path.Combine(_testDirectory, "NotFound");
+
+            // act
+            bool actual = Subject.TryGetFileContents(fileName, out string? contents);
+
+            // assert
+            actual.Should().BeFalse();
+            contents.Should().BeNull();
+        }
+
+        #endregion Public Methods
     }
+
+    #endregion Public Classes
 }
