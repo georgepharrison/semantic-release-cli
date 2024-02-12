@@ -1,12 +1,8 @@
-using System.ComponentModel;
-using System.Dynamic;
-using System.Reflection;
-using System.Text;
-using System.Text.Json;
 using DotLiquid;
 using SemanticReleaseCLI.Interfaces;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.ComponentModel;
 
 namespace SemanticReleaseCLI.Commands.Create;
 
@@ -27,7 +23,7 @@ internal sealed class CreateChangeLogCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         int returnCode = await base.ExecuteAsync(context, settings);
-        
+
         if (returnCode is 0)
         {
             IReadOnlyList<Release> releases = await _repositoryService.GetReleasesAsync(settings.RepositoryPath!);

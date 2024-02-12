@@ -1,8 +1,8 @@
-using System.ComponentModel;
 using DotLiquid;
 using SemanticReleaseCLI.Interfaces;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using System.ComponentModel;
 
 namespace SemanticReleaseCLI.Commands.Create;
 
@@ -25,7 +25,7 @@ internal sealed class CreateReleaseCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         int returnCode = await base.ExecuteAsync(context, settings);
-        
+
         if (returnCode is 0)
         {
             IReadOnlyList<Release> releases = await _repositoryService.GetReleasesAsync(settings.RepositoryPath!);
@@ -45,7 +45,7 @@ internal sealed class CreateReleaseCommand(
             }
             else
             {
-                await _releaseCliService.Create($"VERSION {release.Name}", release.Name, release.CurrentCommitId, releaseNotes);
+                //await _releaseCliService.Create($"VERSION {release.Name}", release.Name, release.CurrentCommitId, releaseNotes);
             }
 
             returnCode = 0;

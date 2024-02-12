@@ -1,11 +1,10 @@
-﻿
+﻿using DotLiquid;
+using SemanticReleaseCLI.Interfaces;
 using System.Dynamic;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using DotLiquid;
-using SemanticReleaseCLI.Interfaces;
 
 namespace SemanticReleaseCLI;
 
@@ -42,8 +41,6 @@ public class RepositoryService(
             contents = reader.ReadToEnd();
         }
 
-        // TODO: Error Handling
-        // Need to ensure that the user's values are correct and doesn't throw an exception
         return Template.Parse(contents);
     }
 
@@ -57,7 +54,7 @@ public class RepositoryService(
 
         foreach (GitCommit commit in commits)
         {
-            var match = Regex.Match(commit.RefNames, @"(?<=tag: )[0-9.]*(?=,|\))");
+            Match match = Regex.Match(commit.RefNames, @"(?<=tag: )[0-9.]*(?=,|\))");
 
             if (match.Success)
             {

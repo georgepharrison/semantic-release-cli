@@ -54,9 +54,7 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
 
         _options.Converters.Add(new CustomDateTimeConverter("yyyy-MM-dd"));
 
-#pragma warning disable IL2026 // Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code
         return JsonSerializer.Deserialize<List<GitCommit>>(json, _options) ?? [];
-#pragma warning restore IL2026 // Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code
     }
 
     public async Task<string> GetCurrentCommit(string? gitPath = null, string? workingDirectory = null)

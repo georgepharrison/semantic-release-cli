@@ -87,7 +87,7 @@ public class GitServiceTests
 
         directory.Delete();
 
-        void RemoveDirectory(DirectoryInfo directory)
+        static void RemoveDirectory(DirectoryInfo directory)
         {
             foreach (FileInfo file in directory.GetFiles())
             {
