@@ -7,7 +7,7 @@ using Spectre.Console.Cli;
 
 namespace SemanticReleaseCLI;
 
-internal sealed class Program
+static class Program
 {
     #region Private Methods
 
@@ -18,7 +18,7 @@ internal sealed class Program
         services.AddTransient<IFileSystemService, FileSystemService>();
         services.AddTransient<IGitService, GitService>();
         services.AddTransient<IReleaseCliService, ReleaseCliService>();
-        services.AddTransient<IRepositoryInformationService, RepositoryInformation>();
+        services.AddTransient<IRepositoryService, RepositoryService>();
 
         TypeRegistrar registrar = new(services);
 
@@ -32,20 +32,12 @@ internal sealed class Program
             {
                 create.AddCommand<CreateChangeLogCommand>("changelog")
                     .WithDescription("Create a CHANGELOG.md file")
-                    .WithExample(["create", "changelog"]);
+                    .WithExample("create", "changelog");
 
                 create.AddCommand<CreateReleaseCommand>("release")
                     .WithDescription("Create a release")
-                    .WithExample(["create", "release"]);
-
-                create.AddCommand<CreateTagCommand>("tag")
-                    .WithDescription("Create a tag")
-                    .WithExample(["create", "tag"]);
+                    .WithExample("create", "release");
             });
-
-            config.AddCommand<GenerateVersionCommand>("generate")
-                .WithDescription("Create a semantic version for the latest commit and export it to version.env.")
-                .WithExample(["generate"]);
         });
 
         return app.Run(args);

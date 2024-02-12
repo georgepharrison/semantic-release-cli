@@ -5,7 +5,7 @@ using Spectre.Console;
 
 namespace SemanticReleaseCLI.Services;
 
-public class ReleaseCliService : IReleaseCliService
+public sealed class ReleaseCliService : IReleaseCliService
 {
     #region Public Methods
 
@@ -13,25 +13,24 @@ public class ReleaseCliService : IReleaseCliService
     {
         Command cmd = Cli.Wrap("release-cli")
             .WithWorkingDirectory(Directory.GetCurrentDirectory())
-            .WithArguments(args =>
-            {
-                args.Add("create");
-                args.Add("--name");
-                args.Add(name);
-                args.Add("--tag-name");
-                args.Add(tagName);
-                args.Add("--description");
-                args.Add(description);
-                args.Add("--ref");
-                args.Add(commitReference);
-            })
+            .WithArguments(args => args
+                .Add("create")
+                .Add("--name")
+                .Add(name)
+                .Add("--tag-name")
+                .Add(tagName)
+                .Add("--description")
+                .Add(description)
+                .Add("--ref")
+                .Add(commitReference)
+            )
             .WithValidation(CommandResultValidation.None);
 
         await foreach (CommandEvent cmdEvent in cmd.ListenAsync())
         {
             switch (cmdEvent)
             {
-                case StartedCommandEvent started:
+                case StartedCommandEvent:
                     AnsiConsole.WriteLine("Creating GitLab Release");
                     break;
 

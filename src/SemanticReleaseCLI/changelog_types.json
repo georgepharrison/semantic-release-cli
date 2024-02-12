@@ -1,0 +1,17 @@
+[
+    {
+        "Heading": "Features",
+        "PropertyName": "features",
+        "Type": "feat"
+    },
+    {
+        "Heading": "Bug Fixes",
+        "PropertyName": "fixes",
+        "Type": "fix"
+    },
+    {
+        "Heading": "Chores",
+        "PropertyName": "chores",
+        "Type": "chore"
+    }
+]

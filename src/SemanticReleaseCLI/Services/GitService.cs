@@ -1,30 +1,25 @@
-// Ignore Spelling: grep
-
 using CliWrap;
 using CliWrap.Buffered;
-using CliWrap.Builders;
-using CliWrap.EventStream;
-using SemanticReleaseCLI.Extensions;
 using SemanticReleaseCLI.Interfaces;
-using Spectre.Console;
-using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 namespace SemanticReleaseCLI.Services;
 
-public class GitService(IFileSystemService fileSystemService) : IGitService
+public sealed class GitService(IFileSystemService fileSystemService) : IGitService
 {
     #region Private Members
 
     private readonly IFileSystemService _fileSystemService = fileSystemService;
+    private readonly JsonSerializerOptions _options = new() { WriteIndented = true };
 
     #endregion Private Members
 
     #region Public Methods
 
-    public async Task<bool> IsGitRepoAsync(string? repoPath = null)
+    public async Task<bool> IsGitRepoAsync(string repoPath)
     {
         BufferedCommandResult result = await Cli.Wrap("git")
-            .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
+            .WithWorkingDirectory(repoPath)
             .WithArguments(args => args
                 .Add("rev-parse")
                 .Add("--git-dir")
@@ -35,218 +30,53 @@ public class GitService(IFileSystemService fileSystemService) : IGitService
         return result.ExitCode is 0;
     }
 
-    public async Task AmendCommit(string? gitPath = null, string? workingDirectory = null)
+    public async Task<IReadOnlyList<GitCommit>> GetAllCommitsAsync(string? repoPath = null)
     {
-        await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "commit", "--amend", "--no-edit" })
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteAsync();
-    }
-
-    public async Task CreateAndPushTag(string tag, string? gitPath = null, string? workingDirectory = null)
-    {
-        await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "tag", tag })
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteAsync();
-
-        await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "push", "origin", tag })
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteAsync();
-    }
-
-    public async Task DeleteTags(string pattern, string? gitPath = null, string? workingDirectory = null)
-    {
-        var foo = _fileSystemService.GetCurrentDirectory();
-
-        BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "tag", "--list", pattern })
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteBufferedAsync();
-
-        string[] tagsToRemove = result.StandardOutput.SplitToLines().ToArray();
-
-        if (tagsToRemove.Length is 0)
-        {
-            AnsiConsole.WriteLine("No tags found for removal");
-        }
-        else
-        {
-            AnsiConsole.WriteLine($"Tags found for removal: {string.Join(", ", tagsToRemove)}");
-
-            Command cmd = Cli.Wrap(gitPath ?? "git")
-                    .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-                    .WithArguments(args =>
-                    {
-                        args.Add("push")
-                            .Add("origin")
-                            .Add("-d");
-
-                        foreach (string tag in tagsToRemove)
-                        {
-                            args.Add(tag);
-                        }
-                    })
-                    .WithValidation(CommandResultValidation.None);
-
-            await foreach (CommandEvent cmdEvent in cmd.ListenAsync())
-            {
-                switch (cmdEvent)
-                {
-                    case StartedCommandEvent started:
-                        AnsiConsole.WriteLine("Removing tags from origin");
-                        break;
-
-                    case StandardOutputCommandEvent stdOut:
-                        AnsiConsole.WriteLine(stdOut.Text);
-                        break;
-
-                    case StandardErrorCommandEvent stdErr:
-                        AnsiConsole.WriteLine(stdErr.Text);
-                        break;
-
-                    default:
-                        break;
-                }
-            }
-
-            cmd = Cli.Wrap(gitPath ?? "git")
-                .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-                .WithArguments(args =>
-                {
-                    args.Add("tag")
-                        .Add("-d");
-
-                    foreach (string tag in tagsToRemove)
-                    {
-                        args.Add(tag);
-                    }
-                })
-                .WithValidation(CommandResultValidation.None);
-
-            await foreach (CommandEvent cmdEvent in cmd.ListenAsync())
-            {
-                switch (cmdEvent)
-                {
-                    case StartedCommandEvent started:
-                        AnsiConsole.WriteLine("Removing local tags");
-                        break;
-
-                    case StandardOutputCommandEvent stdOut:
-                        AnsiConsole.WriteLine(stdOut.Text);
-                        break;
-
-                    case StandardErrorCommandEvent stdErr:
-                        AnsiConsole.WriteLine(stdErr.Text);
-                        break;
-
-                    default:
-                        break;
-                }
-            }
-        }
-    }
-
-    public async Task<int> GetCommitCount(string since, string until, string? gitPath = null, string? workingDirectory = null)
-    {
-        BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
+        BufferedCommandResult result = await Cli.Wrap("git")
+            .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args => args
-                .Add("rev-list")
-                .Add("--count")
-                .Add($"--since={since}")
-                .Add($"--until={until}")
-                .Add("HEAD")
+                .Add("log")
+                .Add("--format={ \"Id\": \"%h\", \"ParentId\": \"%p\", \"AuthorDate\": \"%ai\", \"AuthorName\": \"%an\", \"AuthorEmail\": \"%ae\", \"RefNames\": \"%d\", \"Subject\": \"%s\", \"Body\": \"%b\" }")
             )
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
 
-        return Convert.ToInt32(result.StandardOutput);
-    }
+        string formattedOutput = result.StandardOutput[..^1]
+            .Replace($"}}{Environment.NewLine}{{", "},{", StringComparison.Ordinal)
+            .Replace(Environment.NewLine, @"\n", StringComparison.Ordinal);
 
-    public async Task<string> GetCommitDate(string? format = "%cs", string? reference = null, string? gitPath = null, string? workingDirectory = null)
-    {
-        BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(args =>
-            {
-                args.Add("log");
+        string json = $"[{formattedOutput}]";
 
-                if (!string.IsNullOrEmpty(reference))
-                {
-                    args.Add(reference);
-                }
+        _options.Converters.Add(new CustomDateTimeConverter("yyyy-MM-dd"));
 
-                args.Add("-1");
-                args.Add($"--format={format}");
-            })
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteBufferedAsync();
-
-        return result.StandardOutput[..^1];
+#pragma warning disable IL2026 // Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code
+        return JsonSerializer.Deserialize<List<GitCommit>>(json, _options) ?? [];
+#pragma warning restore IL2026 // Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code
     }
 
     public async Task<string> GetCurrentCommit(string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
             .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "rev-parse", "HEAD" })
+            .WithArguments(args => args
+                .Add("rev-parse")
+                .Add("HEAD" )
+            )
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
 
         return result.StandardOutput;
     }
 
-    public async IAsyncEnumerable<string> GetLogs(string? startIndex = null, string? endIndex = null, string? gitPath = null, string? workingDirectory = null)
-    {
-        int skip = 0;
-
-        while (true)
-        {
-            BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-                .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-                .WithArguments(args =>
-                {
-                    args.Add("log");
-
-                    if (!string.IsNullOrEmpty(startIndex) && !string.IsNullOrEmpty(endIndex))
-                    {
-                        args.Add($"{startIndex}..{endIndex}");
-                    }
-                    else if (!string.IsNullOrEmpty(startIndex))
-                    {
-                        args.Add($"{startIndex}..HEAD");
-                    }
-                    else if (!string.IsNullOrEmpty(endIndex))
-                    {
-                        args.Add(endIndex);
-                    }
-
-                    args.Add($"--skip={skip++}");
-                    args.Add("-n1");
-                })
-                .WithValidation(CommandResultValidation.None)
-                .ExecuteBufferedAsync();
-
-            if (string.IsNullOrWhiteSpace(result.StandardOutput))
-            {
-                yield break;
-            }
-
-            yield return result.StandardOutput;
-        }
-    }
-
     public async Task<string?> GetTagAtHead(string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
             .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "tag", "--points-at", "HEAD" })
+            .WithArguments(args => args
+                .Add("tag")
+                .Add("--points-at")
+                .Add("HEAD")
+            )
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
 
@@ -256,86 +86,6 @@ public class GitService(IFileSystemService fileSystemService) : IGitService
         }
 
         return string.IsNullOrEmpty(result.StandardOutput) ? null : result.StandardOutput[..^1];
-    }
-
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Tag wasn't found")]
-    public async Task<string?> GetTagBeforeHead(string? gitPath = null, string? workingDirectory = null)
-    {
-        try
-        {
-            BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-                .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-                .WithArguments(new[] { "describe", "--tags", "--abbrev=0", "HEAD^" })
-                .WithValidation(CommandResultValidation.None)
-                .ExecuteBufferedAsync();
-
-            if (!string.IsNullOrEmpty(result.StandardError))
-            {
-                return null;
-            }
-
-            return string.IsNullOrEmpty(result.StandardOutput) ? null : result.StandardOutput[..^1];
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public async IAsyncEnumerable<string> GetTags(string? sort = "committerdate", string? gitPath = null, string? workingDirectory = null)
-    {
-        Command cmd = Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "tag", "--sort=committerdate" })
-            .WithValidation(CommandResultValidation.None);
-
-        await foreach (CommandEvent cmdEvent in cmd.ListenAsync())
-        {
-            if (cmdEvent is StandardOutputCommandEvent stdOut)
-            {
-                yield return stdOut.Text;
-            }
-        }
-    }
-
-    public async IAsyncEnumerable<string> SearchLogs(string grep, string? regexType = null, string? startIndex = null, string? endIndex = null, string? gitPath = null, string? workingDirectory = null)
-    {
-        Command cmd = Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(args =>
-            {
-                args.Add("log");
-
-                if (!string.IsNullOrEmpty(startIndex) && !string.IsNullOrEmpty(endIndex))
-                {
-                    args.Add($"{startIndex}..{endIndex}");
-                }
-
-                if (!string.IsNullOrEmpty(regexType))
-                {
-                    args.Add($"-{regexType}");
-                }
-
-                args.Add($@"--grep=""{grep}""");
-            })
-            .WithValidation(CommandResultValidation.None);
-
-        await foreach (CommandEvent cmdEvent in cmd.ListenAsync())
-        {
-            if (cmdEvent is StandardOutputCommandEvent stdOut)
-            {
-                yield return stdOut.Text;
-            }
-        }
-    }
-
-    public async Task StageFile(string file, string? gitPath = null, string? workingDirectory = null)
-    {
-        await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(new[] { "add", file })
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteAsync();
     }
 
     #endregion Public Methods

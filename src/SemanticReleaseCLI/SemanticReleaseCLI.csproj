@@ -9,10 +9,11 @@
     <AssemblyName>semantic-release-cli</AssemblyName>
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
+    <PublishTrimmed>false</PublishTrimmed>
     <TrimMode>partial</TrimMode>
     <AnalysisMode>All</AnalysisMode>
     <TreatAllWarningsAsErrors>false</TreatAllWarningsAsErrors>
+    <NoWarn>CA1062</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,11 +34,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Remove="Templates\CHANGELOG.md" />
+    <Content Remove="changelog_template.md" />
+    <Content Remove="changelog_types.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Templates\CHANGELOG.md" />
+    <EmbeddedResource Include="changelog_template.md" />
+    <EmbeddedResource Include="changelog_types.json" />
   </ItemGroup>
 
 </Project>

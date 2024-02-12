@@ -1,15 +1,22 @@
+using System.ComponentModel;
+using DotLiquid;
 using SemanticReleaseCLI.Interfaces;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace SemanticReleaseCLI.Commands.Create;
 
-internal sealed class CreateReleaseCommand(IGitService gitService, IRepositoryInformationService repositoryInformationService) : AsyncCommand<CreateReleaseCommand.Settings>
+internal sealed class CreateReleaseCommand(
+    IFileSystemService fileSystemService,
+    IGitService gitService,
+    IReleaseCliService releaseCliService,
+    IRepositoryService repositoryService)
+    : AbstractAsyncCommand<CreateReleaseCommand.Settings>(fileSystemService, gitService)
 {
     #region Private Fields
 
-    private readonly IGitService _gitService = gitService;
-    private readonly IRepositoryInformationService _repositoryInformationService = repositoryInformationService;
+    private readonly IReleaseCliService _releaseCliService = releaseCliService;
+    private readonly IRepositoryService _repositoryService = repositoryService;
 
     #endregion Private Fields
 
@@ -17,18 +24,34 @@ internal sealed class CreateReleaseCommand(IGitService gitService, IRepositoryIn
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        bool isGitRepo = await _gitService.IsGitRepoAsync(settings.RepositoryPath);
-
-        if (!isGitRepo)
+        int returnCode = await base.ExecuteAsync(context, settings);
+        
+        if (returnCode is 0)
         {
-            AnsiConsole.WriteLine($"{settings.RepositoryPath ?? "Current directory"} is not a git repository");
+            IReadOnlyList<Release> releases = await _repositoryService.GetReleasesAsync(settings.RepositoryPath!);
 
-            return 1;
+            Release release = releases[0];
+
+            IReadOnlyList<dynamic> templateData = _repositoryService.GetTemplateData(settings.RepositoryPath!, release);
+
+            Template template = _repositoryService.GetChangeLogTemplate(settings.RepositoryPath!);
+
+            string releaseNotes = template.Render(Hash.FromAnonymousObject(new { releases = templateData }));
+
+            if (settings.IsDryRun)
+            {
+                // TODO: need to return version file as well for pipelines to use
+                AnsiConsole.Write(releaseNotes);
+            }
+            else
+            {
+                await _releaseCliService.Create($"VERSION {release.Name}", release.Name, release.CurrentCommitId, releaseNotes);
+            }
+
+            returnCode = 0;
         }
 
-        await _repositoryInformationService.CreateRelease();
-
-        return 0;
+        return returnCode;
     }
 
     #endregion Public Methods
@@ -37,6 +60,13 @@ internal sealed class CreateReleaseCommand(IGitService gitService, IRepositoryIn
 
     public sealed class Settings : AppSettings
     {
+        #region Public Properties
+
+        [Description("Perform a dry run")]
+        [CommandOption("--dry-run")]
+        public bool IsDryRun { get; set; } = false;
+
+        #endregion Public Properties
     }
 
     #endregion Public Classes
