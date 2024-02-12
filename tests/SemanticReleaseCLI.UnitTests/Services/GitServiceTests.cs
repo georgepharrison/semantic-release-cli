@@ -193,9 +193,9 @@ public class GitServiceTests
             // assert
             actual.Should().BeTrue();
 
-            RepositoryService repositoryService = new(MockFileSystemService.Object, Subject);
+            //RepositoryService repositoryService = new(MockFileSystemService.Object, Subject);
 
-            IReadOnlyList<Release> releases = await repositoryService.GetReleasesAsync(RepoPath);
+            //IReadOnlyList<Release> releases = await repositoryService.GetReleasesAsync(RepoPath);
         }
 
         [TestMethod]
