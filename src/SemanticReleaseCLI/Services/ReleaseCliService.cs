@@ -9,7 +9,7 @@ public sealed class ReleaseCliService : IReleaseCliService
 {
     #region Public Methods
 
-    public async Task Create(string name, string tagName, string commitReference, string description)
+    public async Task CreateAsync(string name, string tagName, string commitReference, string description)
     {
         Command cmd = Cli.Wrap("release-cli")
             .WithWorkingDirectory(Directory.GetCurrentDirectory())

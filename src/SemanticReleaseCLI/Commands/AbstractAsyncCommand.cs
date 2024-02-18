@@ -10,7 +10,6 @@ internal abstract class AbstractAsyncCommand<TSettings>(IFileSystemService fileS
 {
     #region Private Fields
 
-    private readonly IFileSystemService _fileSystemService = fileSystemService;
     private readonly IGitService _gitService = gitService;
 
     #endregion Private Fields
@@ -19,8 +18,8 @@ internal abstract class AbstractAsyncCommand<TSettings>(IFileSystemService fileS
 
     public override async Task<int> ExecuteAsync(CommandContext context, TSettings settings)
     {
-        settings.RepositoryPath ??= _fileSystemService.GetCurrentDirectory();
-        
+        settings.RepositoryPath ??= FileSystemService.GetCurrentDirectory();
+
         bool isGitRepo = await _gitService.IsGitRepoAsync(settings.RepositoryPath);
 
         if (!isGitRepo)
@@ -34,4 +33,10 @@ internal abstract class AbstractAsyncCommand<TSettings>(IFileSystemService fileS
     }
 
     #endregion Public Methods
+
+    #region Protected Properties
+
+    protected IFileSystemService FileSystemService { get; } = fileSystemService;
+
+    #endregion Protected Properties
 }

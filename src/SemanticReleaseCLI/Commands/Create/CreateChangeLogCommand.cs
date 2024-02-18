@@ -24,19 +24,16 @@ internal sealed class CreateChangeLogCommand(
     {
         int returnCode = await base.ExecuteAsync(context, settings);
 
+        if (!settings.IsDryRun && (string.IsNullOrEmpty(settings.Author) || string.IsNullOrEmpty(settings.Branch)))
+        {
+            throw new InvalidOperationException("Must provide both author and branch command options when not performing a dry run");
+        }
+
         if (returnCode is 0)
         {
             IReadOnlyList<Release> releases = await _repositoryService.GetReleasesAsync(settings.RepositoryPath!);
 
-            string releaseVersion = releases[0].Name;
-
-            AnsiConsole.WriteLine($"RELEASE_VERSION={releaseVersion}");
-
-            IReadOnlyList<dynamic> templateData = _repositoryService.GetTemplateData(settings.RepositoryPath!, releases);
-
-            Template template = _repositoryService.GetChangeLogTemplate(settings.RepositoryPath!);
-
-            string changeLog = template.Render(Hash.FromAnonymousObject(new { releases = templateData }));
+            string changeLog = CreateChangeLog(settings.RepositoryPath!, releases);
 
             if (settings.IsDryRun)
             {
@@ -44,18 +41,13 @@ internal sealed class CreateChangeLogCommand(
             }
             else
             {
-                string changelogDirectory = Path.Combine(settings.RepositoryPath!, settings.OutputDirectory);
+                string version = releases[0].Name;
 
-                Directory.CreateDirectory(changelogDirectory);
+                AnsiConsole.WriteLine($"VERSION={version}");
 
-                string fileName = Path.Combine(changelogDirectory, "CHANGELOG.md");
+                string fileName = await FileSystemService.WriteAllTextAsync("CHANGELOG.md", changeLog, settings.RepositoryPath!, settings.OutputDirectory);
 
-                await File.WriteAllTextAsync(fileName, changeLog);
-
-                // TODO: add CHANGELOG.md and commit
-                // git add CHANGELOG.md
-                // commit commit -m "chore(CHANGELOG): 0.00.0000.0" --author=LAST_COMMIT_AUTHOR
-                // git push origin HEAD:branch
+                await _repositoryService.AddChangeLogAsync(fileName, version, settings.Author, settings.Branch, settings.RepositoryPath!);
             }
 
             returnCode = 0;
@@ -66,11 +58,32 @@ internal sealed class CreateChangeLogCommand(
 
     #endregion Public Methods
 
+    #region Private Methods
+
+    private string CreateChangeLog(string repoPath, IEnumerable<Release> releases)
+    {
+        IReadOnlyList<dynamic> templateData = _repositoryService.GetTemplateData(repoPath, releases);
+
+        Template template = _repositoryService.GetChangeLogTemplate(repoPath);
+
+        return template.Render(Hash.FromAnonymousObject(new { releases = templateData }));
+    }
+
+    #endregion Private Methods
+
     #region Public Classes
 
     public sealed class Settings : AppSettings
     {
         #region Public Properties
+
+        [Description("Author of change log git commit")]
+        [CommandOption("-a")]
+        public string Author { get; set; } = string.Empty;
+
+        [Description("Branch for change log git commit")]
+        [CommandOption("-b")]
+        public string Branch { get; set; } = string.Empty;
 
         [Description("Perform a dry run")]
         [CommandOption("--dry-run")]

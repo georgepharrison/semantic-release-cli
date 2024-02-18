@@ -16,18 +16,30 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
 
     #region Public Methods
 
-    public async Task<bool> IsGitRepoAsync(string repoPath)
+    public async Task AddFileAsync(string fileName, string? repoPath = null)
     {
         BufferedCommandResult result = await Cli.Wrap("git")
-            .WithWorkingDirectory(repoPath)
+            .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args => args
-                .Add("rev-parse")
-                .Add("--git-dir")
+                .Add("add")
+                .Add(fileName)
             )
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
+    }
 
-        return result.ExitCode is 0;
+    public async Task CommitAsync(string message, string author, string? repoPath = null)
+    {
+        BufferedCommandResult result = await Cli.Wrap("git")
+            .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
+            .WithArguments(args => args
+                .Add("commit")
+                .Add("-m")
+                .Add(message)
+                .Add($"--author={author}")
+            )
+            .WithValidation(CommandResultValidation.None)
+            .ExecuteBufferedAsync();
     }
 
     public async Task<IReadOnlyList<GitCommit>> GetAllCommitsAsync(string? repoPath = null)
@@ -57,21 +69,7 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
         return JsonSerializer.Deserialize<List<GitCommit>>(json, _options) ?? [];
     }
 
-    public async Task<string> GetCurrentCommit(string? gitPath = null, string? workingDirectory = null)
-    {
-        BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
-            .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
-            .WithArguments(args => args
-                .Add("rev-parse")
-                .Add("HEAD")
-            )
-            .WithValidation(CommandResultValidation.None)
-            .ExecuteBufferedAsync();
-
-        return result.StandardOutput;
-    }
-
-    public async Task<string?> GetTagAtHead(string? gitPath = null, string? workingDirectory = null)
+    public async Task<string?> GetTagAtHeadAsync(string? gitPath = null, string? workingDirectory = null)
     {
         BufferedCommandResult result = await Cli.Wrap(gitPath ?? "git")
             .WithWorkingDirectory(workingDirectory ?? _fileSystemService.GetCurrentDirectory())
@@ -89,6 +87,33 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
         }
 
         return string.IsNullOrEmpty(result.StandardOutput) ? null : result.StandardOutput[..^1];
+    }
+
+    public async Task<bool> IsGitRepoAsync(string repoPath)
+    {
+        BufferedCommandResult result = await Cli.Wrap("git")
+            .WithWorkingDirectory(repoPath)
+            .WithArguments(args => args
+                .Add("rev-parse")
+                .Add("--git-dir")
+            )
+            .WithValidation(CommandResultValidation.None)
+            .ExecuteBufferedAsync();
+
+        return result.ExitCode is 0;
+    }
+
+    public async Task PushAsync(string remote, string reference, string? repoPath = null)
+    {
+        BufferedCommandResult result = await Cli.Wrap("git")
+            .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
+            .WithArguments(args => args
+                .Add("push")
+                .Add(remote)
+                .Add(reference)
+            )
+            .WithValidation(CommandResultValidation.None)
+            .ExecuteBufferedAsync();
     }
 
     #endregion Public Methods

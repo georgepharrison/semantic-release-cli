@@ -25,6 +25,15 @@ public class RepositoryService(
 
     #region Public Methods
 
+    public async Task AddChangeLogAsync(string changeLogFileName, string version, string author, string branch, string repoPath)
+    {
+        await _gitService.AddFileAsync(changeLogFileName, repoPath);
+
+        await _gitService.CommitAsync($"chore(CHANGELOG): {version}", author, repoPath);
+
+        await _gitService.PushAsync("origin", $"HEAD:{branch}", repoPath);
+    }
+
     public Template GetChangeLogTemplate(string repoPath)
     {
         string fileName = Path.Combine(repoPath, _changeLogTemplateFileName);
@@ -46,7 +55,7 @@ public class RepositoryService(
 
     public async Task<IReadOnlyList<Release>> GetReleasesAsync(string repoPath)
     {
-        IReadOnlyList<GitCommit> commits = await _gitService.GetAllCommitsAsync(repoPath: repoPath);
+        IReadOnlyList<GitCommit> commits = await _gitService.GetAllCommitsAsync(repoPath);
 
         List<Release> releases = [];
         List<GitCommit> releaseCommits = [];
@@ -179,9 +188,13 @@ public class RepositoryService(
 
     private sealed class ChangeTypeOptions
     {
+        #region Public Properties
+
         public string Heading { get; set; } = string.Empty;
         public string PropertyName { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
+
+        #endregion Public Properties
     }
 
     #endregion Public Classes

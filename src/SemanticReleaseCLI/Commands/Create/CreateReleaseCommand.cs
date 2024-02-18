@@ -28,24 +28,19 @@ internal sealed class CreateReleaseCommand(
 
         if (returnCode is 0)
         {
-            IReadOnlyList<Release> releases = await _repositoryService.GetReleasesAsync(settings.RepositoryPath!);
+            Release release = await GetReleaseAsync(settings.RepositoryPath!);
 
-            Release release = releases[0];
+            string releaseNotes = CreateReleaseNotes(settings.RepositoryPath!, release);
 
-            IReadOnlyList<dynamic> templateData = _repositoryService.GetTemplateData(settings.RepositoryPath!, release);
-
-            Template template = _repositoryService.GetChangeLogTemplate(settings.RepositoryPath!);
-
-            string releaseNotes = template.Render(Hash.FromAnonymousObject(new { releases = templateData }));
+            await CreateVersionEnvironmentVariableFileAsync(release);
 
             if (settings.IsDryRun)
             {
-                // TODO: need to return version file as well for pipelines to use
                 AnsiConsole.Write(releaseNotes);
             }
             else
             {
-                //await _releaseCliService.Create($"VERSION {release.Name}", release.Name, release.CurrentCommitId, releaseNotes);
+                await _releaseCliService.CreateAsync($"VERSION {release.Name}", release.Name, release.CurrentCommitId, releaseNotes);
             }
 
             returnCode = 0;
@@ -55,6 +50,29 @@ internal sealed class CreateReleaseCommand(
     }
 
     #endregion Public Methods
+
+    #region Private Methods
+
+    private string CreateReleaseNotes(string repoPath, Release release)
+    {
+        IReadOnlyList<dynamic> templateData = _repositoryService.GetTemplateData(repoPath, release);
+
+        Template template = _repositoryService.GetChangeLogTemplate(repoPath);
+
+        return template.Render(Hash.FromAnonymousObject(new { releases = templateData }));
+    }
+
+    private async Task CreateVersionEnvironmentVariableFileAsync(Release release)
+    {
+        string versionEnvironmentVariable = $"VERSION={release.Name}";
+
+        await FileSystemService.WriteAllTextAsync("version.env", versionEnvironmentVariable);
+    }
+
+    private async Task<Release> GetReleaseAsync(string repoPath)
+        => (await _repositoryService.GetReleasesAsync(repoPath))[0];
+
+    #endregion Private Methods
 
     #region Public Classes
 

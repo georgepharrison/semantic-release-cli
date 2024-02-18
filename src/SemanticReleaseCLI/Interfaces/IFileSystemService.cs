@@ -9,6 +9,10 @@ public interface IFileSystemService
     string GetCurrentDirectory();
 
     bool TryGetFileContents(string fileName, [MaybeNullWhen(false)] out string? contents);
- 
+
+    Task WriteAllTextAsync(string fileName, string contents);
+
+    Task<string> WriteAllTextAsync(string fileName, string contents, params string[] paths);
+
     #endregion Public Methods
 }
