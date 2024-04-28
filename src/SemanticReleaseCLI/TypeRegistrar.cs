@@ -24,11 +24,11 @@ internal sealed class TypeRegistrar(IServiceCollection builder) : ITypeRegistrar
     public void RegisterInstance(Type service, object implementation)
         => _builder.AddSingleton(service, implementation);
 
-    public void RegisterLazy(Type service, Func<object> func)
+    public void RegisterLazy(Type service, Func<object> factory)
     {
-        ArgumentNullException.ThrowIfNull(func);
+        ArgumentNullException.ThrowIfNull(factory);
 
-        _builder.AddSingleton(service, (provider) => func());
+        _builder.AddSingleton(service, (provider) => factory());
     }
 
     #endregion Public Methods

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -15,6 +15,16 @@
     <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
     <CoverletOutput>../../</CoverletOutput>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="changelog_template.md" />
+    <None Remove="changelog_types.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="changelog_template.md" />
+    <EmbeddedResource Include="changelog_types.json" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" Version="6.0.0">
