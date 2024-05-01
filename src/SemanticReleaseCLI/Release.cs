@@ -52,7 +52,7 @@ public sealed class Release
 
         string month = authorDate.Month.ToString().TrimStart('0');
 
-        string day = authorDate.Day.ToString();
+        string day = authorDate.ToString("dd");
 
         int commitNumberOfDay = _commits.Count(x => x.GitCommit.AuthorDate.Date == authorDate.Date);
 
