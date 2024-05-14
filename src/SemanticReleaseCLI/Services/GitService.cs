@@ -48,25 +48,45 @@ public sealed class GitService(IFileSystemService fileSystemService) : IGitServi
             .WithWorkingDirectory(repoPath ?? _fileSystemService.GetCurrentDirectory())
             .WithArguments(args => args
                 .Add("log")
-                .Add("--format={ \"Id\": \"%h\", \"ParentId\": \"%p\", \"AuthorDate\": \"%ai\", \"AuthorName\": \"%an\", \"AuthorEmail\": \"%ae\", \"RefNames\": \"%d\", \"Subject\": \"%s\", \"Body\": \"%b\" }")
+                .Add("--format=Id:::%h---ParentId:::%p---AuthorDate:::%ai---AuthorName:::%an---AuthorEmail:::%ae---RefNames:::%d---Subject:::%s---Body:::%b|||")
             )
             .WithValidation(CommandResultValidation.None)
             .ExecuteBufferedAsync();
 
         string formattedOutput = result.StandardOutput[..^1]
-            .Replace($"}}{Environment.NewLine}{{", "},{", StringComparison.Ordinal)
-            .Replace($"}}\r\n{{", "},{", StringComparison.Ordinal)
-            .Replace($"}}\r{{", "},{", StringComparison.Ordinal)
-            .Replace($"}}\n{{", "},{", StringComparison.Ordinal)
+            .Replace($"|||{Environment.NewLine}", "|||", StringComparison.Ordinal)
+            .Replace($"|||\r\n", "|||", StringComparison.Ordinal)
+            .Replace($"|||\r", "|||", StringComparison.Ordinal)
+            .Replace($"|||\n", "|||", StringComparison.Ordinal)
             .Replace(Environment.NewLine, @"\r\n", StringComparison.Ordinal)
             .Replace("\n", @"\r\n", StringComparison.Ordinal)
             .Replace("\r\r\n", @"\r\n", StringComparison.Ordinal);
 
-        string json = $"[{formattedOutput}]";
+        string[] unparsedCommits = formattedOutput.Split("|||", StringSplitOptions.RemoveEmptyEntries);
 
-        _options.Converters.Add(new CustomDateTimeConverter("yyyy-MM-dd"));
+        List<GitCommit> commits = [];
 
-        return JsonSerializer.Deserialize<List<GitCommit>>(json, _options) ?? [];
+        foreach (string unparsedCommit in unparsedCommits)
+        {
+            Dictionary<string, string> commitProperties = unparsedCommit.Split("---")
+                    .ToDictionary(
+                        x => x.Split(":::")[0],
+                        x => x.Split(":::")[1]);
+
+            commits.Add(new()
+            {
+                Id = commitProperties[nameof(GitCommit.Id)],
+                ParentId = commitProperties[nameof(GitCommit.ParentId)],
+                AuthorDate = DateTime.Parse(commitProperties[nameof(GitCommit.AuthorDate)]),
+                AuthorName = commitProperties[nameof(GitCommit.AuthorName)],
+                AuthorEmail = commitProperties[nameof(GitCommit.AuthorEmail)],
+                RefNames = commitProperties[nameof(GitCommit.RefNames)],
+                Subject = commitProperties[nameof(GitCommit.Subject)],
+                Body = commitProperties[nameof(GitCommit.Body)],
+            });
+        }
+
+        return commits;
     }
 
     public async Task<string?> GetTagAtHeadAsync(string? gitPath = null, string? workingDirectory = null)
