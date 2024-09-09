@@ -46,17 +46,22 @@ public sealed class Release
 
         int bumps = _commits.Sum(x => x.VersionBumps);
 
-        int major = int.Parse(parentName?.Split('.').FirstOrDefault() ?? "0") + bumps;
+        string[] parts = parentName?.Split(".") ?? ["0"];
+
+        int major = int.TryParse(parts[0], out int parentMajor) ? parentMajor + bumps : 0;
 
         string year = authorDate.Year.ToString().Substring(2, 2);
 
-        string month = authorDate.Month.ToString().TrimStart('0');
-
-        string day = authorDate.ToString("dd");
+        string monthDay = authorDate.ToString("MMdd").TrimStart('0');
 
         int commitNumberOfDay = _commits.Count(x => x.GitCommit.AuthorDate.Date == authorDate.Date);
 
-        return $"{major}.{year}.{month}{day}.{commitNumberOfDay}";
+        if (parts.Length is 4 && parts[1] == year && parts[2] == monthDay)
+        {
+            commitNumberOfDay += int.TryParse(parts[3], out int existingCommitsOfDay) ? existingCommitsOfDay : 0;
+        }
+
+        return $"{major}.{year}.{monthDay}.{commitNumberOfDay}";
     }
 
     #endregion Public Methods
